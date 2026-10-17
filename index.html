@@ -26,11 +26,14 @@
     button.secondary{background:transparent;color:var(--accent);border:1px solid var(--border)}
     #results h2{margin-top:28px;color:var(--accent-2)}
     #status{font-size:.85rem;color:var(--muted);margin-bottom:12px;min-height:1em}
-    .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+    .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
     .rock{background:#0a0f1d;border:1px solid var(--border);border-radius:10px;padding:14px}
     .rock .name{font-weight:600;margin-bottom:6px}
     .rock .row{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);margin:3px 0}
-    .rock .row b{color:var(--text)}
+    .rock .row b{color:var(--text);text-align:right}
+    .row .label{color:var(--muted)}
+    .dv{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
+    .dv .row b{color:var(--accent-2)}
     .badge{display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:999px;margin-top:8px}
     .badge.mining{background:rgba(255,179,71,.15);color:var(--accent-2)}
     .badge.spectral{background:rgba(78,161,255,.15);color:var(--accent)}
@@ -40,8 +43,8 @@
 </head>
 <body>
   <header>
-    <h1>ASTRO-MATCH — Mission Trajectory &amp; Asteroid Proximity Analysis</h1>
-    <p>Enter the mission window and trajectory. Candidates within tolerance of the path are flagged for spectral analysis or mining.</p>
+    <h1>ASTRA — Mission Trajectory &amp; Asteroid Proximity Analysis</h1>
+    <p>Enter the mission window and trajectory. Candidates within tolerance of the path are flagged for spectral analysis or mining, with the delta-v required to reach each threshold.</p>
   </header>
 
   <main>
@@ -78,7 +81,6 @@
   </main>
 
   <script>
-    // ---- STATIC VERSION: read the committed data file, not a live backend ----
     const DATA_FILE = "/api/candidates.json";
     const $ = (id) => document.getElementById(id);
     const log = (m) => { const e = $("log"); e.textContent += `\n${m}`; e.scrollTop = e.scrollHeight; };
@@ -92,16 +94,13 @@
     async function runAnalysis() {
       try {
         $("status").textContent = "Loading data…"; $("runBtn").disabled = true;
-        parseTrajectory($("coordinates").value); // validate early
+        parseTrajectory($("coordinates").value);
         log(`Loading ${DATA_FILE}`);
 
         const res = await fetch(DATA_FILE);
         if (!res.ok) throw new Error(`Could not load data (${res.status})`);
         const data = await res.json();
 
-        // ---- PLUG-POINT: paste your existing calculation here ----
-        // data.candidates already holds {name, jpl_id, type, distanceAU, relevance}.
-        // If your calc is JS, run it over data here to filter/sort by tolerance & scope.
         const tolerance = parseFloat($("tolerance").value);
         const scope = $("scope").value;
         const candidates = data.candidates
@@ -120,20 +119,27 @@
       const grid = $("cardGrid"); grid.innerHTML = "";
       if (!results.length) { $("status").textContent = "No asteroids within tolerance of the trajectory."; return; }
       $("status").textContent = `${results.length} candidate(s) within ${tolerance} AU of path.`;
+
       for (const r of results) {
         const badges = [];
         if (r.relevance === "spectral") badges.push('<span class="badge spectral">Spectral</span>');
         if (r.relevance === "mining")   badges.push('<span class="badge mining">Mining</span>');
         if (r.relevance === "marginal") badges.push('<span class="badge marginal">Marginal</span>');
-        const c = document.createElement("div"); c.className = "rock";
-        c.innerHTML = `
+
+        const card = document.createElement("div");
+        card.className = "rock";
+        card.innerHTML = `
           <div class="name">${r.name}</div>
-          <div class="row"><span>Closest distance</span><b>${r.distanceAU.toFixed(4)} AU</b></div>
-          <div class="row"><span>Distance (km)</span><b>${(r.distanceAU*149597870.7).toFixed(0)}</b></div>
-          <div class="row"><span>Type / diameter</span><b>${r.type||"—"} · ${r.diameter||"—"} km</b></div>
-          <div class="row"><span>Horizons ID</span><b>${r.jpl_id||"—"}</b></div>
-          ${badges.join(" ")}`;
-        grid.appendChild(c);
+          <div class="row"><span class="label">Closest distance</span><b>${(r.distance_km ?? (r.distanceAU * 149597870.7)).toLocaleString(undefined, {maximumFractionDigits:0})} km</b></div>
+          <div class="row"><span class="label">Distance</span><b>${(r.distanceAU ?? 0).toFixed(4)} AU</b></div>
+          <div class="row"><span class="label">Type / diameter</span><b>${r.type || "—"} · ${r.diameter || "—"} km</b></div>
+          <div class="row"><span class="label">Horizons ID</span><b>${r.jpl_id || "—"}</b></div>
+          ${badges.join(" ")}
+          <div class="dv">
+            <div class="row"><span class="label">Δv → spectroscopy</span><b>${r.dv_spectro_min_ms != null ? r.dv_spectro_min_ms + " m/s" : "—"}</b></div>
+            <div class="row"><span class="label">Δv → imaging</span><b>${r.dv_imaging_min_ms != null ? r.dv_imaging_min_ms + " m/s" : "—"}</b></div>
+          </div>`;
+        grid.appendChild(card);
       }
     }
 
