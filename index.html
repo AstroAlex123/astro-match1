@@ -26,7 +26,7 @@
     button.secondary{background:transparent;color:var(--accent);border:1px solid var(--border)}
     #results h2{margin-top:28px;color:var(--accent-2)}
     #status{font-size:.85rem;color:var(--muted);margin-bottom:12px;min-height:1em}
-    .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+    .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
     .rock{background:#0a0f1d;border:1px solid var(--border);border-radius:10px;padding:14px}
     .rock .name{font-weight:600;margin-bottom:6px}
     .rock .row{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);margin:3px 0}
@@ -43,8 +43,8 @@
 </head>
 <body>
   <header>
-    <h1>ASTRA — Mission Trajectory &amp; Asteroid Proximity Analysis</h1>
-    <p>Select a preset mission to auto-fill the timeframe and trajectory, or enter your own. Candidates within tolerance of the path are flagged for spectral analysis or mining, with the delta-v required to reach each threshold.</p>
+    <h1>ASTRA — JUICE Mission Trajectory &amp; Asteroid Proximity Analysis</h1>
+    <p>Preset missions auto-fill the timeframe and trajectory. Candidates within tolerance of the path are flagged for spectral analysis or mining, showing the minimum departure delta-v, relative velocity, and closest-approach date from real JUICE ephemerides.</p>
   </header>
 
   <main>
@@ -108,7 +108,6 @@
         });
     }
 
-    // ---- preset missions ----
     async function loadMissions() {
       try {
         const res = await fetch(MISSIONS_FILE);
@@ -169,8 +168,8 @@
       for (const r of results) {
         const badges = [];
         if (r.relevance === "spectral") badges.push('<span class="badge spectral">Spectral</span>');
-        if (r.relevance === "mining")   badges.push('<span class="badge mining">Mining</span>');
-        if (r.relevance === "marginal") badges.push('<span class="badge marginal">Marginal</span>');
+        else if (r.relevance === "mining") badges.push('<span class="badge mining">Mining</span>');
+        else badges.push('<span class="badge marginal">Marginal</span>');
 
         const card = document.createElement("div");
         card.className = "rock";
@@ -178,12 +177,15 @@
           <div class="name">${r.name}</div>
           <div class="row"><span class="label">Closest distance</span><b>${(r.distance_km ?? (r.distanceAU * 149597870.7)).toLocaleString(undefined, {maximumFractionDigits:0})} km</b></div>
           <div class="row"><span class="label">Distance</span><b>${(r.distanceAU ?? 0).toFixed(4)} AU</b></div>
+          <div class="row"><span class="label">Closest approach</span><b>${r.closest_approach || "—"}</b></div>
           <div class="row"><span class="label">Type / diameter</span><b>${r.type || "—"} · ${r.diameter || "—"} km</b></div>
           <div class="row"><span class="label">Horizons ID</span><b>${r.jpl_id || "—"}</b></div>
           ${badges.join(" ")}
           <div class="dv">
-            <div class="row"><span class="label">Δv → spectroscopy</span><b>${r.dv_spectro_min_ms != null ? r.dv_spectro_min_ms + " m/s" : "—"}</b></div>
-            <div class="row"><span class="label">Δv → imaging</span><b>${r.dv_imaging_min_ms != null ? r.dv_imaging_min_ms + " m/s" : "—"}</b></div>
+            <div class="row"><span class="label">Δv (min)</span><b>${r.dv_min_ms != null ? r.dv_min_ms + " m/s" : "—"}</b></div>
+            <div class="row"><span class="label">Δv (max)</span><b>${r.dv_max_ms != null ? r.dv_max_ms + " m/s" : "—"}</b></div>
+            <div class="row"><span class="label">Lead for Δv_min</span><b>${r.lead_best_d != null ? r.lead_best_d + " d" : "—"}</b></div>
+            <div class="row"><span class="label">Rel. velocity</span><b>${r.vrel_ms != null ? r.vrel_ms + " m/s" : "—"}</b></div>
           </div>`;
         grid.appendChild(card);
       }
@@ -203,3 +205,4 @@
   </script>
 </body>
 </html>
+
