@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASTRA — Horizons Trajectory Proximity Analysis</title>
+  <style>
+    :root{--bg:#05070f;--panel:#0d1220;--accent:#4ea1ff;--accent-2:#ffb347;--text:#e6ecff;--muted:#8a94b6;--border:#1e2740}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:radial-gradient(1200px 800px at 70% -10%,#10203f 0%,var(--bg) 55%);color:var(--text);min-height:100vh}
+    header{padding:24px 32px;border-bottom:1px solid var(--border)}
+    header h1{margin:0;font-size:1.4rem;letter-spacing:.5px}
+    header p{margin:6px 0 0;color:var(--muted);font-size:.9rem}
+    main{display:grid;grid-template-columns:360px 1fr;gap:24px;padding:24px 32px 64px;max-width:1400px}
+    @media(max-width:900px){main{grid-template-columns:1fr}}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px}
+    .panel h2{margin:0 0 16px;font-size:1rem;color:var(--accent)}
+    fieldset{border:1px solid var(--border);border-radius:8px;margin-bottom:16px;padding:14px}
+    legend{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:1px;padding:0 6px}
+    label{display:block;font-size:.85rem;margin:10px 0 4px}
+    input,select,textarea{width:100%;background:#060a14;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-size:.9rem;font-family:inherit}
+    textarea{resize:vertical;min-height:90px;font-family:ui-monospace,monospace}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .hint{font-size:.75rem;color:var(--muted);margin-top:4px}
+    button{width:100%;background:var(--accent);color:#04122b;border:none;border-radius:8px;padding:12px;font-weight:600;font-size:.95rem;cursor:pointer;margin-top:8px}
+    button:disabled{opacity:.5;cursor:wait}
+    button:hover{filter:brightness(1.08)}
+    button.secondary{background:transparent;color:var(--accent);border:1px solid var(--border)}
+    #results h2{margin-top:28px;color:var(--accent-2)}
+    #status{font-size:.85rem;color:var(--muted);margin-bottom:12px;min-height:1em}
+    .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+    .rock{background:#0a0f1d;border:1px solid var(--border);border-radius:10px;padding:14px}
+    .rock .name{font-weight:600;margin-bottom:6px}
+    .rock .row{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);margin:3px 0;gap:8px}
+    .rock .row b{color:var(--text);text-align:right}
+    .row .label{color:var(--muted)}
+    .dv{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
+    .dv .row b{color:var(--accent-2)}
+    .spark{width:100%;height:46px;margin-top:6px;display:block}
+    .badge{display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:999px;margin-top:8px}
+    .badge.mining{background:rgba(255,179,71,.15);color:var(--accent-2)}
+    .badge.spectral{background:rgba(78,161,255,.15);color:var(--accent)}
+    .badge.marginal{background:rgba(138,148,182,.15);color:var(--muted)}
+    pre#log{background:#060a14;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.8rem;color:var(--muted);white-space:pre-wrap;max-height:240px;overflow:auto}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ASTRA — Mission Trajectory &amp; Asteroid Proximity Analysis</h1>
+    <p>Enter the mission window and trajectory. Candidates within tolerance of the path are flagged for spectral analysis or mining, with the delta-v required to reach each one.</p>
+  </header>
+
+  <main>
+    <section class="panel" aria-label="Mission inputs">
+      <h2>Mission Parameters</h2>
+
+      <fieldset>
+        <legend>Mission</legend>
+        <label for="mission">Mission name</label>
+        <input type="text" id="mission" placeholder="e.g. JUICE" />
+        <div class="hint">Case studies with bundled Horizons data (currently: JUICE) use that ephemeris as the trajectory.</div>
+        <button class="secondary" id="juiceBtn" type="button">Load JUICE case study</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Timeframe</legend>
+        <label for="start">Start time (YYYY-MM-DD)</label><input type="text" id="start" placeholder="2026-01-01" />
+        <label for="stop">Stop time</label><input type="text" id="stop" placeholder="2026-01-02" />
+        <label for="step">Step (e.g. 1d, 6h, 30m)</label><input type="text" id="step" value="1d" />
+      </fieldset>
+
+      <fieldset>
+        <legend>Lambert transfer</legend>
+        <div class="two">
+          <div><label for="leadMin">Lead min (days)</label><input type="number" id="leadMin" value="30" min="1" /></div>
+          <div><label for="leadMax">Lead max (days)</label><input type="number" id="leadMax" value="365" min="1" /></div>
+        </div>
+        <div class="hint">Lead = days before closest approach at which the spacecraft leaves its trajectory to intercept the asteroid at that epoch.</div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Trajectory (custom missions)</legend>
+        <label for="coordinates">Trajectory points (heliocentric ecliptic, AU)</label>
+        <textarea id="coordinates" placeholder="One point per line: x y z&#10;e.g.&#10;1.0 0.0 0.0&#10;1.5 0.8 0.05&#10;2.2 1.1 0.08"></textarea>
+        <div class="hint">Points are joined as a polyline; distance is measured to the nearest segment. Ignored for bundled case studies.</div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Matching</legend>
+        <label for="tolerance">Proximity tolerance (AU)</label><input type="number" id="tolerance" value="0.1" step="0.01" min="0" />
+        <label for="scope">Analysis scope</label>
+        <select id="scope"><option value="both">Spectral analysis + Mining</option><option value="spectral">Spectral analysis only</option><option value="mining">Mining only</option></select>
+      </fieldset>
+      <button id="runBtn">Run Proximity Analysis</button>
+      <button class="secondary" id="clearBtn">Clear</button>
+    </section>
+
+    <section class="panel" id="results" aria-label="Results">
+      <h2>Proximity Candidates</h2>
+      <div id="status">Ready.</div>
+      <div id="cardGrid" class="card-grid"></div>
+      <h2>Process Log</h2><pre id="log"></pre>
+    </section>
+  </main>
+
+  <script>
+    const DATA_FILE = "api/candidates.json";
+    const CASE_FILES = { juice: "api/juice_case.json" };
+    const DV_CAP_MS = 500;               // Δv above this is badged "marginal"
+    const $ = (id) => document.getElementById(id);
+    const log = (m) => { const e = $("log"); e.textContent += `\n${m}`; e.scrollTop = e.scrollHeight; };
+
+    // ───────────── Orbital mechanics core ─────────────
+    const MU = 0.01720209895 ** 2;                 // Sun GM, AU^3/day^2 (Gaussian k^2)
+    const AUD_TO_MS = 1.495978707e11 / 86400;      // AU/day -> m/s
+    const AU_KM = 149597870.7;
+
+    function parseStep(s) {
+      const m = /^\s*([\d.]+)\s*(d|h|m)?\s*$/i.exec(s || "");
+      if (!m) throw new Error("Step must look like 1d, 6h or 30m");
+      const v = parseFloat(m[1]), u = (m[2] || "d").toLowerCase();
+      return u === "d" ? v : u === "h" ? v / 24 : v / 1440;
+    }
+    const dateToJD = (s) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((s || "").trim());
+      if (!m) throw new Error("Dates must be YYYY-MM-DD");
+      return Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000 + 2440587.5;
+    };
+    const jdToDate = (jd) => new Date((jd - 2440587.5) * 86400000).toISOString().slice(0, 10);
+
+    // Cubic Hermite interpolation of a daily [x,y,z,vx,vy,vz] table; t = days since table start
+    function hermite(tab, t) {
+      let i = Math.floor(t); i = Math.min(Math.max(i, 0), tab.length - 2);
+      const u = t - i, a = tab[i], b = tab[i + 1];
+      const h00 = 2*u**3 - 3*u**2 + 1, h10 = u**3 - 2*u**2 + u, h01 = -2*u**3 + 3*u**2, h11 = u**3 - u**2;
+      const d00 = 6*u**2 - 6*u, d10 = 3*u**2 - 4*u + 1, d01 = -6*u**2 + 6*u, d11 = 3*u**2 - 2*u;
+      const p = [0,0,0], v = [0,0,0];
+      for (let k = 0; k < 3; k++) {
+        p[k] = h00*a[k] + h10*a[k+3] + h01*b[k] + h11*b[k+3];
+        v[k] = d00*a[k] + d10*a[k+3] + d01*b[k] + d11*b[k+3];
+      }
+      return { p, v };
+    }
+    const sub = (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+    const norm = (a) => Math.hypot(a[0], a[1], a[2]);
+    const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+
+    function stumpff(z) {
+      if (z > 1e-8)  { const s = Math.sqrt(z);  return [(1 - Math.cos(s)) / z, (s - Math.sin(s)) / s**3]; }
+      if (z < -1e-8) { const s = Math.sqrt(-z); return [(Math.cosh(s) - 1) / -z, (Math.sinh(s) - s) / s**3]; }
+      return [0.5 - z/24 + z*z/720, 1/6 - z/120 + z*z/5040];
+    }
+    // Universal-variable Lambert (zero-revolution, prograde). Returns {v1, v2} in AU/day or null.
+    function lambert(r1, r2, dt) {
+      const n1 = norm(r1), n2 = norm(r2);
+      const c = dot(r1, r2) / (n1 * n2);
+      let s = Math.sqrt(Math.max(0, 1 - c*c));
+      if (r1[0]*r2[1] - r1[1]*r2[0] < 0) s = -s;          // prograde about +z
+      let dth = Math.atan2(s, c); if (dth < 0) dth += 2*Math.PI;
+      const A = Math.sin(dth) * Math.sqrt(n1*n2 / (1 - Math.cos(dth)));
+      if (!isFinite(A) || Math.abs(A) < 1e-12) return null;
+      const Y = (z) => { const [C, S] = stumpff(z); return [n1 + n2 + A*(z*S - 1)/Math.sqrt(C), C, S]; };
+      const f = (z) => { const [y, C, S] = Y(z); return y < 0 ? -1e9 : (y/C)**1.5 * S + A*Math.sqrt(y) - Math.sqrt(MU)*dt; };
+      let lo = -4*Math.PI**2, hi = 4*Math.PI**2 - 1e-3;
+      while (f(lo) > 0 && lo > -1e4) lo *= 2;
+      let flo = f(lo); if (flo * f(hi) > 0) return null;
+      for (let i = 0; i < 200 && hi - lo > 1e-12; i++) {
+        const m = 0.5*(lo + hi), fm = f(m);
+        if (flo * fm <= 0) hi = m; else { lo = m; flo = fm; }
+      }
+      const z = 0.5*(lo + hi), [y] = Y(z);
+      const F = 1 - y/n1, G = A*Math.sqrt(y/MU), Gd = 1 - y/n2;
+      return {
+        v1: r2.map((v, k) => (v - F*r1[k]) / G),
+        v2: r2.map((v, k) => (Gd*v - r1[k]) / G),
+      };
+    }
+
+    // Closest approach of one asteroid to the spacecraft inside [startJD, stopJD], sampled at stepD
+    function closestApproach(cs, ast, startJD, stopJD, stepD) {
+      const tMax = cs.spacecraft.length - 1;
+      const t0 = Math.max(startJD - cs.jd0, 0), t1 = Math.min(stopJD - cs.jd0, tMax);
+      const dist = (t) => norm(sub(hermite(cs.spacecraft, t).p, hermite(ast.state, t).p));
+      let best = { t: t0, d: Infinity };
+      for (let t = t0; t <= t1 + 1e-9; t += stepD) { const d = dist(t); if (d < best.d) best = { t, d }; }
+      // local refinement within ±1 step
+      for (let k = -20; k <= 20; k++) {
+        const t = Math.min(Math.max(best.t + k * stepD / 20, t0), t1), d = dist(t);
+        if (d < best.d) best = { t, d };
+      }
+      return best;
+    }
+
+    // Lambert Δv scan: leave spacecraft trajectory at (tCA − lead), arrive at asteroid at tCA
+    function lambertScan(cs, ast, tCA, leadMin, leadMax) {
+      const out = [];
+      const arr = hermite(ast.state, tCA);
+      for (let L = leadMin; L <= leadMax; L++) {
+        const td = tCA - L;
+        if (td < 0) { out.push({ L, dv: null }); continue; }
+        const sc = hermite(cs.spacecraft, td);
+        const sol = lambert(sc.p, arr.p, L);
+        out.push(sol ? {
+          L,
+          dv: norm(sub(sol.v1, sc.v)) * AUD_TO_MS,        // departure burn, m/s
+          vrel: norm(sub(sol.v2, arr.v)) * AUD_TO_MS,     // arrival relative speed, m/s
+        } : { L, dv: null });
+      }
+      return out;
+    }
+
+    function analyseCase(cs, startJD, stopJD, stepD, tolerance, leadMin, leadMax) {
+      const rows = [];
+      for (const ast of cs.asteroids) {
+        const ca = closestApproach(cs, ast, startJD, stopJD, stepD);
+        const dAU = ca.d;
+        const scan = lambertScan(cs, ast, ca.t, leadMin, leadMax);
+        const ok = scan.filter(s => s.dv != null);
+        const best = ok.length ? ok.reduce((a, b) => (b.dv < a.dv ? b : a)) : null;
+        rows.push({
+          name: ast.name, jpl_id: ast.jpl_id, type: ast.type, diameter: ast.diameter,
+          distanceAU: dAU, distance_km: dAU * AU_KM,
+          caDate: jdToDate(cs.jd0 + ca.t),
+          scan, best,
+          dvMin: best ? best.dv : null, leadBest: best ? best.L : null, vrel: best ? best.vrel : null,
+          dvMax: ok.length ? Math.max(...ok.map(s => s.dv)) : null,
+        });
+      }
+      return rows.filter(r => r.distanceAU <= tolerance).sort((a, b) => a.distanceAU - b.distanceAU);
+    }
+
+    // ───────────── Existing helpers ─────────────
+    function parseTrajectory(t) {
+      return t.split("\n").map(s => s.trim()).filter(s => s).map(s => {
+        const nums = s.replace(/[()]/g, "").split(/[\s,]+/).map(Number);
+        if (nums.length < 3 || nums.some(Number.isNaN)) throw new Error("Malformed coordinate: " + s);
+        return { x: nums[0], y: nums[1], z: nums[2] };
+      });
+    }
+
+    const caseCache = {};
+    async function loadCase(key) {
+      if (caseCache[key]) return caseCache[key];
+      log(`Loading ${CASE_FILES[key]}`);
+      const res = await fetch(CASE_FILES[key]);
+      if (!res.ok) throw new Error(`Could not load case study (${res.status})`);
+      return (caseCache[key] = await res.json());
+    }
+
+    async function runAnalysis() {
+      try {
+        $("status").textContent = "Running…"; $("runBtn").disabled = true;
+        const tolerance = parseFloat($("tolerance").value);
+        const scope = $("scope").value;
+        const mission = $("mission").value.trim().toLowerCase();
+        const caseKey = Object.keys(CASE_FILES).find(k => mission.includes(k));
+
+        let candidates;
+        if (caseKey) {
+          const cs = await loadCase(caseKey);
+          const startJD = dateToJD($("start").value), stopJD = dateToJD($("stop").value);
+          const stepD = parseStep($("step").value);
+          const leadMin = parseInt($("leadMin").value, 10), leadMax = parseInt($("leadMax").value, 10);
+          if (!(stopJD > startJD)) throw new Error("Stop must be after start");
+          if (!(leadMin >= 1 && leadMax >= leadMin)) throw new Error("Check lead range");
+          const dataEnd = cs.jd0 + cs.spacecraft.length - 1;
+          if (startJD < cs.jd0 || stopJD > dataEnd)
+            log(`Note: bundled ephemeris covers ${jdToDate(cs.jd0)} to ${jdToDate(dataEnd)}; window clipped.`);
+          log(`${cs.mission}: scanning ${cs.asteroids.length} asteroids, step ${stepD.toFixed(3)} d, lead ${leadMin}–${leadMax} d`);
+          candidates = analyseCase(cs, startJD, stopJD, stepD, tolerance, leadMin, leadMax);
+          for (const c of candidates) {
+            const ok = c.dvMin != null && c.dvMin <= DV_CAP_MS;
+            c.relevance = !ok ? "marginal" : scope === "mining" ? "mining" : "spectral";
+          }
+        } else {
+          parseTrajectory($("coordinates").value);
+          log(`Loading ${DATA_FILE}`);
+          const res = await fetch(DATA_FILE);
+          if (!res.ok) throw new Error(`Could not load data (${res.status})`);
+          const data = await res.json();
+          candidates = data.candidates
+            .filter(c => c.distanceAU != null && c.distanceAU <= tolerance)
+            .sort((a, b) => a.distanceAU - b.distanceAU);
+        }
+        render(candidates, tolerance);
+        log(`Done — ${candidates.length} candidate(s) within ${tolerance} AU.`);
+      } catch (e) {
+        log("ERROR: " + e.message);
+        $("status").textContent = "Error: " + e.message;
+      } finally { $("runBtn").disabled = false; }
+    }
+
+    function sparkline(scan) {
+      const pts = scan.filter(s => s.dv != null);
+      if (pts.length < 2) return "";
+      const W = 240, H = 46, ys = pts.map(p => Math.log10(Math.max(p.dv, 1)));
+      const lo = Math.min(...ys), hi = Math.max(...ys), span = (hi - lo) || 1;
+      const x0 = pts[0].L, x1 = pts[pts.length - 1].L;
+      const d = pts.map((p, i) => `${i ? "L" : "M"}${((p.L - x0) / (x1 - x0) * W).toFixed(1)},${(H - 4 - (ys[i] - lo) / span * (H - 8)).toFixed(1)}`).join("");
+      return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${d}" fill="none" stroke="#ffb347" stroke-width="1.5"/></svg>
+              <div class="row"><span class="label">Δv vs lead (log)</span><b>${x0}–${x1} d</b></div>`;
+    }
+
+    function render(results, tolerance) {
+      const grid = $("cardGrid"); grid.innerHTML = "";
+      if (!results.length) { $("status").textContent = "No asteroids within tolerance of the trajectory."; return; }
+      $("status").textContent = `${results.length} candidate(s) within ${tolerance} AU of path.`;
+      const fmt = (v, d = 0) => v == null ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d });
+
+      for (const r of results) {
+        const badges = [];
+        if (r.relevance === "spectral") badges.push('<span class="badge spectral">Spectral</span>');
+        if (r.relevance === "mining")   badges.push('<span class="badge mining">Mining</span>');
+        if (r.relevance === "marginal") badges.push('<span class="badge marginal">Marginal</span>');
+
+        const lambertBlock = r.scan ? `
+          <div class="row"><span class="label">Closest approach</span><b>${r.caDate}</b></div>
+          <div class="dv">
+            <div class="row"><span class="label">Min Lambert Δv</span><b>${fmt(r.dvMin)} m/s</b></div>
+            <div class="row"><span class="label">at lead time</span><b>${r.leadBest ?? "—"} d</b></div>
+            <div class="row"><span class="label">Δv range over leads</span><b>${fmt(r.dvMin)}–${fmt(r.dvMax)} m/s</b></div>
+            <div class="row"><span class="label">Arrival rel. speed</span><b>${fmt(r.vrel)} m/s</b></div>
+            ${sparkline(r.scan)}
+          </div>` : `
+          <div class="dv">
+            <div class="row"><span class="label">Δv → spectroscopy</span><b>${r.dv_spectro_min_ms != null ? r.dv_spectro_min_ms + " m/s" : "—"}</b></div>
+            <div class="row"><span class="label">Δv → imaging</span><b>${r.dv_imaging_min_ms != null ? r.dv_imaging_min_ms + " m/s" : "—"}</b></div>
+          </div>`;
+
+        const card = document.createElement("div");
+        card.className = "rock";
+        card.innerHTML = `
+          <div class="name">${r.name}</div>
+          <div class="row"><span class="label">Closest distance</span><b>${fmt(r.distance_km ?? (r.distanceAU * AU_KM))} km</b></div>
+          <div class="row"><span class="label">Distance</span><b>${(r.distanceAU ?? 0).toFixed(4)} AU</b></div>
+          <div class="row"><span class="label">Type / diameter</span><b>${r.type || "—"} · ${r.diameter || "—"} km</b></div>
+          <div class="row"><span class="label">Horizons ID</span><b>${r.jpl_id || "—"}</b></div>
+          ${badges.join(" ")}
+          ${lambertBlock}`;
+        grid.appendChild(card);
+      }
+    }
+
+    $("juiceBtn").addEventListener("click", () => {
+      $("mission").value = "JUICE";
+      $("start").value = "2023-04-15"; $("stop").value = "2031-01-01"; $("step").value = "1d";
+      $("leadMin").value = 30; $("leadMax").value = 365;
+      $("status").textContent = "JUICE case study loaded — press Run.";
+    });
+    $("runBtn").addEventListener("click", runAnalysis);
+    $("clearBtn").addEventListener("click", () => {
+      $("coordinates").value = ""; $("log").textContent = "";
+      $("cardGrid").innerHTML = ""; $("status").textContent = "Ready.";
+    });
+    log("System ready.");
+  </script>
+</body>
+</html>
