@@ -156,6 +156,38 @@ function parseTrajectory(t) {
       }
     }
 
+    const MISSIONS_FILE = "data/missions.json";
+let MISSIONS = {};
+
+async function loadMissions() {
+  try {
+    const res = await fetch(MISSIONS_FILE);
+    if (!res.ok) throw new Error(`missions.json (${res.status})`);
+    MISSIONS = await res.json();
+    const list = $("missionList");
+    list.innerHTML = "";
+    Object.keys(MISSIONS).forEach(name => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      list.appendChild(opt);
+    });
+    log(`Loaded ${Object.keys(MISSIONS).length} missions.`);
+  } catch (e) {
+    log("missions load error: " + e.message);
+  }
+}
+
+function selectMission(name) {
+  const m = MISSIONS[name];
+  if (!m) return;
+  $("start").value = m.start;
+  $("stop").value = m.stop;
+  $("step").value = m.step || "1d";
+  $("coordinates").value = (m.trajectory || []).map(p => p.join(" ")).join("\n");
+  log(`Selected mission: ${name}`);
+}
+
+
     $("runBtn").addEventListener("click", runAnalysis);
     $("clearBtn").addEventListener("click", () => {
       $("coordinates").value = ""; $("log").textContent = "";
