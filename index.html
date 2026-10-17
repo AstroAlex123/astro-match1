@@ -85,11 +85,17 @@
     const $ = (id) => document.getElementById(id);
     const log = (m) => { const e = $("log"); e.textContent += `\n${m}`; e.scrollTop = e.scrollHeight; };
 
-    function parseTrajectory(t) {
-      return t.split("\n").map(s => s.trim()).filter(Boolean)
-        .map(s => { const [x, y, z] = s.split(/\s+/).map(Number);
-          if ([x, y, z].some(Number.isNaN)) throw new Error("Malformed coordinate: " + s); return { x, y, z }; });
-    }
+function parseTrajectory(t) {
+  return t.split("\n")
+    .map(s => s.trim())
+    .filter(s => s)
+    .map(s => {
+      // accept "x y z" OR "(x, y, z)" style
+      const nums = s.replace(/[()]/g, "").split(/[\s,]+/).map(Number);
+      if (nums.length < 3 || nums.some(Number.isNaN)) throw new Error("Malformed coordinate: " + s);
+      return { x: nums[0], y: nums[1], z: nums[2] };
+    });
+}
 
     async function runAnalysis() {
       try {
