@@ -192,6 +192,8 @@ function selectMission(name) {
     $("clearBtn").addEventListener("click", () => {
       $("coordinates").value = ""; $("log").textContent = "";
       $("cardGrid").innerHTML = ""; $("status").textContent = "Ready.";
+      $("mission").addEventListener("change", () => selectMission($("mission").value));
+window.addEventListener("load", loadMissions);
     });
     log("System ready.");
   </script>
