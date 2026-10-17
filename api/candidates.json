@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "source": "NASA JPL Horizons (precomputed)",
+    "epoch_window": { "start": "2026-01-01", "stop": "2026-01-02", "step": "1d" },
+    "note": "Regenerate this file whenever the mission timeframe changes."
+  },
+  "candidates": [
+    { "name": "(1) Ceres",     "jpl_id": "1",   "type": "C", "diameter": 940, "distanceAU": 0.042, "relevance": "mining" },
+    { "name": "(4) Vesta",     "jpl_id": "4",   "type": "V", "diameter": 525, "distanceAU": 0.078, "relevance": "mining" },
+    { "name": "(2) Pallas",    "jpl_id": "2",   "type": "C", "diameter": 512, "distanceAU": 0.113, "relevance": "spectral" },
+    { "name": "(10) Hygiea",   "jpl_id": "10",  "type": "C", "diameter": 434, "distanceAU": 0.190, "relevance": "marginal" },
+    { "name": "(6) Hebe",      "jpl_id": "6",   "type": "S", "diameter": 237, "distanceAU": 0.255, "relevance": "mining" }
+  ]
+}
