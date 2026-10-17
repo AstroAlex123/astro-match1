@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASTRA — Horizons Trajectory Proximity Analysis</title>
+  <style>
+    :root{--bg:#05070f;--panel:#0d1220;--accent:#4ea1ff;--accent-2:#ffb347;--text:#e6ecff;--muted:#8a94b6;--border:#1e2740}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:radial-gradient(1200px 800px at 70% -10%,#10203f 0%,var(--bg) 55%);color:var(--text);min-height:100vh}
+    header{padding:24px 32px;border-bottom:1px solid var(--border)}
+    header h1{margin:0;font-size:1.4rem;letter-spacing:.5px}
+    header p{margin:6px 0 0;color:var(--muted);font-size:.9rem}
+    main{display:grid;grid-template-columns:360px 1fr;gap:24px;padding:24px 32px 64px;max-width:1400px}
+    @media(max-width:900px){main{grid-template-columns:1fr}}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px}
+    .panel h2{margin:0 0 16px;font-size:1rem;color:var(--accent)}
+    fieldset{border:1px solid var(--border);border-radius:8px;margin-bottom:16px;padding:14px}
+    legend{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:1px;padding:0 6px}
+    label{display:block;font-size:.85rem;margin:10px 0 4px}
+    input,select,textarea{width:100%;background:#060a14;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-size:.9rem;font-family:inherit}
+    textarea{resize:vertical;min-height:90px;font-family:ui-monospace,monospace}
+    .hint{font-size:.75rem;color:var(--muted);margin-top:4px}
+    button{width:100%;background:var(--accent);color:#04122b;border:none;border-radius:8px;padding:12px;font-weight:600;font-size:.95rem;cursor:pointer;margin-top:8px}
+    button:hover{filter:brightness(1.08)}
+    button.secondary{background:transparent;color:var(--accent);border:1px solid var(--border)}
+    #results h2{margin-top:28px;color:var(--accent-2)}
+    #status{font-size:.85rem;color:var(--muted);margin-bottom:12px;min-height:1em}
+    .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+    .rock{background:#0a0f1d;border:1px solid var(--border);border-radius:10px;padding:14px}
+    .rock .name{font-weight:600;margin-bottom:6px}
+    .rock .row{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);margin:3px 0}
+    .rock .row b{color:var(--text)}
+    .badge{display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:999px;margin-top:8px}
+    .badge.mining{background:rgba(255,179,71,.15);color:var(--accent-2)}
+    .badge.spectral{background:rgba(78,161,255,.15);color:var(--accent)}
+    .badge.marginal{background:rgba(138,148,182,.15);color:var(--muted)}
+    pre#log{background:#060a14;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.8rem;color:var(--muted);white-space:pre-wrap;max-height:240px;overflow:auto}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ASTRA — Mission Trajectory &amp; Asteroid Proximity Analysis</h1>
+    <p>Enter the mission window and trajectory. Candidates within tolerance of the path are flagged for spectral analysis or mining.</p>
+  </header>
+
+  <main>
+    <section class="panel" aria-label="Mission inputs">
+      <h2>Mission Parameters</h2>
+      <fieldset>
+        <legend>Timeframe</legend>
+        <label for="start">Start time (YYYY-MM-DD)</label><input type="text" id="start" placeholder="2026-01-01" />
+        <label for="stop">Stop time</label><input type="text" id="stop" placeholder="2026-01-02" />
+        <label for="step">Step</label><input type="text" id="step" value="1d" />
+      </fieldset>
+      <fieldset>
+        <legend>Trajectory</legend>
+        <label for="coordinates">Trajectory points (heliocentric ecliptic, AU)</label>
+        <textarea id="coordinates" placeholder="One point per line: x y z&#10;e.g.&#10;1.0 0.0 0.0&#10;1.5 0.8 0.05&#10;2.2 1.1 0.08"></textarea>
+        <div class="hint">Points are joined as a polyline; distance is measured to the nearest segment.</div>
+      </fieldset>
+      <fieldset>
+        <legend>Matching</legend>
+        <label for="tolerance">Proximity tolerance (AU)</label><input type="number" id="tolerance" value="0.1" step="0.01" min="0" />
+        <label for="scope">Analysis scope</label>
+        <select id="scope"><option value="both">Spectral analysis + Mining</option><option value="spectral">Spectral analysis only</option><option value="mining">Mining only</option></select>
+      </fieldset>
+      <button id="runBtn">Run Proximity Analysis</button>
+      <button class="secondary" id="clearBtn">Clear</button>
+    </section>
+
+    <section class="panel" id="results" aria-label="Results">
+      <h2>Proximity Candidates</h2>
+      <div id="status">Ready.</div>
+      <div id="cardGrid" class="card-grid"></div>
+      <h2>Process Log</h2><pre id="log"></pre>
+    </section>
+  </main>
+
+  <script>
+    // ---- STATIC VERSION: read the committed data file, not a live backend ----
+    const DATA_FILE = "/api/candidates.json";
+    const $ = (id) => document.getElementById(id);
+    const log = (m) => { const e = $("log"); e.textContent += `\n${m}`; e.scrollTop = e.scrollHeight; };
+
+    function parseTrajectory(t) {
+      return t.split("\n").map(s => s.trim()).filter(Boolean)
+        .map(s => { const [x, y, z] = s.split(/\s+/).map(Number);
+          if ([x, y, z].some(Number.isNaN)) throw new Error("Malformed coordinate: " + s); return { x, y, z }; });
+    }
+
+    async function runAnalysis() {
+      try {
+        $("status").textContent = "Loading data…"; $("runBtn").disabled = true;
+        parseTrajectory($("coordinates").value); // validate early
+        log(`Loading ${DATA_FILE}`);
+
+        const res = await fetch(DATA_FILE);
+        if (!res.ok) throw new Error(`Could not load data (${res.status})`);
+        const data = await res.json();
+
+        // ---- PLUG-POINT: paste your existing calculation here ----
+        // data.candidates already holds {name, jpl_id, type, distanceAU, relevance}.
+        // If your calc is JS, run it over data here to filter/sort by tolerance & scope.
+        const tolerance = parseFloat($("tolerance").value);
+        const scope = $("scope").value;
+        const candidates = data.candidates
+          .filter(c => c.distanceAU != null && c.distanceAU <= tolerance)
+          .sort((a, b) => a.distanceAU - b.distanceAU);
+
+        render(candidates, tolerance);
+        log(`Done — ${candidates.length} candidate(s) within ${tolerance} AU.`);
+      } catch (e) {
+        log("ERROR: " + e.message);
+        $("status").textContent = "Error: " + e.message;
+      } finally { $("runBtn").disabled = false; }
+    }
+
+    function render(results, tolerance) {
+      const grid = $("cardGrid"); grid.innerHTML = "";
+      if (!results.length) { $("status").textContent = "No asteroids within tolerance of the trajectory."; return; }
+      $("status").textContent = `${results.length} candidate(s) within ${tolerance} AU of path.`;
+      for (const r of results) {
+        const badges = [];
+        if (r.relevance === "spectral") badges.push('<span class="badge spectral">Spectral</span>');
+        if (r.relevance === "mining")   badges.push('<span class="badge mining">Mining</span>');
+        if (r.relevance === "marginal") badges.push('<span class="badge marginal">Marginal</span>');
+        const c = document.createElement("div"); c.className = "rock";
+        c.innerHTML = `
+          <div class="name">${r.name}</div>
+          <div class="row"><span>Closest distance</span><b>${r.distanceAU.toFixed(4)} AU</b></div>
+          <div class="row"><span>Distance (km)</span><b>${(r.distanceAU*149597870.7).toFixed(0)}</b></div>
+          <div class="row"><span>Type / diameter</span><b>${r.type||"—"} · ${r.diameter||"—"} km</b></div>
+          <div class="row"><span>Horizons ID</span><b>${r.jpl_id||"—"}</b></div>
+          ${badges.join(" ")}`;
+        grid.appendChild(c);
+      }
+    }
+
+    $("runBtn").addEventListener("click", runAnalysis);
+    $("clearBtn").addEventListener("click", () => {
+      $("coordinates").value = ""; $("log").textContent = "";
+      $("cardGrid").innerHTML = ""; $("status").textContent = "Ready.";
+    });
+    log("System ready.");
+  </script>
+</body>
+</html>
