@@ -1,14 +1,116 @@
 {
   "metadata": {
-    "source": "NASA JPL Horizons (precomputed)",
-    "epoch_window": { "start": "2026-01-01", "stop": "2026-01-02", "step": "1d" },
-    "note": "Regenerate this file whenever the mission timeframe changes."
+    "source": "NASA JPL Horizons (precomputed from uploaded ephemerides)",
+    "mission": "JUICE",
+    "epoch_window": {
+      "start": "2023-04-15",
+      "stop": "2031-01-01",
+      "step": "1d"
+    },
+    "lead_days": {
+      "min": 30,
+      "max": 365
+    },
+    "note": "Closest approach from daily ephemerides (Hermite-interpolated). dv_min_ms is the minimum zero-revolution prograde Lambert departure burn over the lead range. Barycentre treated as Sun. Regenerate if the mission timeframe changes."
   },
   "candidates": [
-    { "name": "(1) Ceres",     "jpl_id": "1",   "type": "C", "diameter": 940, "distanceAU": 0.042, "relevance": "mining" },
-    { "name": "(4) Vesta",     "jpl_id": "4",   "type": "V", "diameter": 525, "distanceAU": 0.078, "relevance": "mining" },
-    { "name": "(2) Pallas",    "jpl_id": "2",   "type": "C", "diameter": 512, "distanceAU": 0.113, "relevance": "spectral" },
-    { "name": "(10) Hygiea",   "jpl_id": "10",  "type": "C", "diameter": 434, "distanceAU": 0.190, "relevance": "marginal" },
-    { "name": "(6) Hebe",      "jpl_id": "6",   "type": "S", "diameter": 237, "distanceAU": 0.255, "relevance": "mining" }
+    {
+      "name": "52073 (2002 QD45)",
+      "jpl_id": "52073",
+      "type": "—",
+      "diameter": 2.67,
+      "distanceAU": 0.00218,
+      "distance_km": 325826,
+      "closest_approach": "2027-12-27",
+      "relevance": "spectral",
+      "dv_min_ms": 29,
+      "lead_best_d": 174,
+      "dv_max_ms": 125,
+      "vrel_ms": 6256
+    },
+    {
+      "name": "229179 (2004 TD166)",
+      "jpl_id": "229179",
+      "type": "—",
+      "diameter": 3.05,
+      "distanceAU": 0.00225,
+      "distance_km": 336833,
+      "closest_approach": "2029-08-12",
+      "relevance": "spectral",
+      "dv_min_ms": 28,
+      "lead_best_d": 205,
+      "dv_max_ms": 32364,
+      "vrel_ms": 14136
+    },
+    {
+      "name": "53982 (2000 GG74)",
+      "jpl_id": "53982",
+      "type": "—",
+      "diameter": 6.83,
+      "distanceAU": 0.00738,
+      "distance_km": 1104415,
+      "closest_approach": "2029-07-28",
+      "relevance": "spectral",
+      "dv_min_ms": 103,
+      "lead_best_d": 159,
+      "dv_max_ms": 24339,
+      "vrel_ms": 13851
+    },
+    {
+      "name": "12327 Terbruggen (1992 SX1)",
+      "jpl_id": "12327",
+      "type": "—",
+      "diameter": 5.96,
+      "distanceAU": 0.00972,
+      "distance_km": 1454302,
+      "closest_approach": "2029-07-14",
+      "relevance": "spectral",
+      "dv_min_ms": 122,
+      "lead_best_d": 177,
+      "dv_max_ms": 27767,
+      "vrel_ms": 13060
+    },
+    {
+      "name": "116035 (2003 WN96)",
+      "jpl_id": "116035",
+      "type": "—",
+      "diameter": 6.88,
+      "distanceAU": 0.01836,
+      "distance_km": 2747265,
+      "closest_approach": "2029-09-27",
+      "relevance": "spectral",
+      "dv_min_ms": 195,
+      "lead_best_d": 206,
+      "dv_max_ms": 15300,
+      "vrel_ms": 11989
+    },
+    {
+      "name": "1650 Heckmann (1937 TG)",
+      "jpl_id": "1650",
+      "type": "F",
+      "diameter": 30.2,
+      "distanceAU": 0.02592,
+      "distance_km": 3877495,
+      "closest_approach": "2027-06-29",
+      "relevance": "spectral",
+      "dv_min_ms": 347,
+      "lead_best_d": 164,
+      "dv_max_ms": 40975,
+      "vrel_ms": 10447
+    },
+    {
+      "name": "51 Nemausa (A858 BA)",
+      "jpl_id": "51",
+      "type": "Ch",
+      "diameter": 138.16,
+      "distanceAU": 0.25541,
+      "distance_km": 38209009,
+      "closest_approach": "2029-06-10",
+      "relevance": "marginal",
+      "dv_min_ms": 3094,
+      "lead_best_d": 365,
+      "dv_max_ms": 47618,
+      "vrel_ms": 10932
+    }
   ]
 }
