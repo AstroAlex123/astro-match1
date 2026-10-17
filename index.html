@@ -51,6 +51,13 @@
     <section class="panel" aria-label="Mission inputs">
       <h2>Mission Parameters</h2>
       <fieldset>
+        <legend>Mission</legend>
+        <label for="mission">Preset mission</label>
+        <input list="missionList" id="mission" placeholder="Type or select a mission…" />
+        <datalist id="missionList"></datalist>
+        <div class="hint">Selecting a mission fills in the timeframe and trajectory.</div>
+      </fieldset>
+      <fieldset>
         <legend>Timeframe</legend>
         <label for="start">Start time (YYYY-MM-DD)</label><input type="text" id="start" placeholder="2026-01-01" />
         <label for="stop">Stop time</label><input type="text" id="stop" placeholder="2026-01-02" />
